@@ -1,12 +1,16 @@
 # localGPT-Vision
 
-[![GitHub Stars](https://img.shields.io/github/stars/PromtEngineer/localGPT?style=social)](https://github.com/PromtEngineer/localGPT/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/PromtEngineer/localGPT?style=social)](https://github.com/PromtEngineer/localGPT/network/members)
-[![GitHub Issues](https://img.shields.io/github/issues/PromtEngineer/localGPT)](https://github.com/PromtEngineer/localGPT/issues)
-[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/PromtEngineer/localGPT)](https://github.com/PromtEngineer/localGPT/pulls)
-[![License](https://img.shields.io/github/license/PromtEngineer/localGPT)](https://github.com/PromtEngineer/localGPT/blob/main/LICENSE)
 
-localGPT-Vision is an end-to-end vision-based Retrieval-Augmented Generation (RAG) system. It allows users to upload and index documents (PDFs and images), ask questions about the content, and receive responses along with relevant document snippets. The retrieval is performed using the [ColPali](https://huggingface.co/blog/manu/colpali) model, and the retrieved pages are passed to a Vision Language Model (VLM) for generating responses. Currently, the code supports three VLMs: Qwen2-VL-7B-Instruct, Google Gemini, and OpenAI GPT-4. The project is built on top of the [Byaldi](https://github.com/AnswerDotAI/byaldi) library.
+localGPT-Vision is an end-to-end vision-based Retrieval-Augmented Generation (RAG) system. It allows users to upload and index documents (PDFs and images), ask questions about the content, and receive responses along with relevant document snippets. The retrieval is performed using the [ColPali](https://huggingface.co/blog/manu/colpali) model, and the retrieved pages are passed to a Vision Language Model (VLM) for generating responses. Currently, the code supports these VLMs: 
+
+- [Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct)
+- [LLAMA-3.2-11B-Vision](https://huggingface.co/meta-llama/Llama-3.2-11B-Vision)
+- [Pixtral-12B-2409](https://huggingface.co/mistralai/Pixtral-12B-2409)
+- [Molmo-7B-O-0924](https://huggingface.co/allenai/Molmo-7B-O-0924)
+- [Google Gemini](https://aistudio.google.com/app/prompts/new_chat)
+- [OpenAI GPT-4o](https://platform.openai.com/docs/guides/vision)
+
+The project is built on top of the [Byaldi](https://github.com/AnswerDotAI/byaldi) library.
 
 ## Table of Contents
 - [Features](#features)
@@ -24,8 +28,8 @@ localGPT-Vision is an end-to-end vision-based Retrieval-Augmented Generation (RA
 - Document Upload and Indexing: Upload PDFs and images, which are then indexed using ColPali for retrieval.
 - Chat Interface: Engage in a conversational interface to ask questions about the uploaded documents.
 - Session Management: Create, rename, switch between, and delete chat sessions.
-- Model Selection: Choose between different Vision Language Models (Qwen2-VL-7B-Instruct, Google Gemini, OpenAI GPT-4).
-- Persistent Indexes: Indexes are saved on disk and loaded upon application restart. (TODO: bug fixes needed)
+- Model Selection: Choose between different Vision Language Models (Qwen2-VL-7B-Instruct, Google Gemini, OpenAI GPT-4 etc).
+- Persistent Indexes: Indexes are saved on disk and loaded upon application restart. 
 
 ## Architecture
 localGPT-Vision is built as an end-to-end vision-based RAG system. T he architecture comprises two main components:
@@ -40,7 +44,7 @@ localGPT-Vision is built as an end-to-end vision-based RAG system. T he architec
 
 2. Response Generation with Vision Language Models:
    - The retrieved document images are passed to a Vision Language Model (VLM).
-   - Supported models include Qwen2-VL-7B-Instruct, Google Gemini, and OpenAI GPT-4.
+   - Supported models include Qwen2-VL-7B-Instruct, LLAMA3.2, Pixtral, Molmo, Google Gemini, and OpenAI GPT-4.
    - These models generate responses by understanding both the visual and textual content of the documents.
    - NOTE: The quality of the responses is highly dependent on the VLM used and the resolution of the document images.
 
@@ -83,12 +87,14 @@ Follow these steps to set up and run the application on your local machine.
    ```bash
    export GENAI_API_KEY='your_genai_api_key'
    export OPENAI_API_KEY='your_openai_api_key'
+   export GROQ_API_KEY='your_groq_api_key'
    ```
 
    On Windows Command Prompt:
    ```cmd
    set GENAI_API_KEY=your_genai_api_key
    set OPENAI_API_KEY=your_openai_api_key
+   set GROQ_API_KEY='your_groq_api_key'
    ```
 
 5. Run the Application
@@ -217,6 +223,4 @@ Contributions are welcome! Please follow these steps:
 4. Push to the branch: `git push origin feature-name`.
 5. Submit a pull request.
 
-## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=PromtEngineer/localGPT&type=Date)](https://star-history.com/#PromtEngineer/localGPT&Date)

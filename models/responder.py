@@ -171,31 +171,35 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             return response
         
         elif model_choice == "pixtral":
-
-            model, sampling_params, device = load_model('pixtral')
-
+            model, tokenizer, generate_func, device = load_model('pixtral')
 
             def image_to_data_url(image_path):
-
                 image_path = os.path.join('static', image_path) 
-                
                 with open(image_path, "rb") as image_file:
                     encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
                 ext = os.path.splitext(image_path)[1][1:]  # Get the file extension
                 return f"data:image/{ext};base64,{encoded_string}"
-            
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": query},
-                        *[{"type": "image_url", "image_url": {"url": image_to_data_url(img_path)}} for i, img_path in enumerate(images) if i<1]
-                    ]
-                },
-            ]
 
-            outputs = model.chat(messages, sampling_params=sampling_params)
-            return outputs[0].outputs[0].text
+            from mistral_common.protocol.instruct.messages import UserMessage, TextChunk, ImageURLChunk
+            from mistral_common.protocol.instruct.request import ChatCompletionRequest
+
+            # Prepare the content with text and images
+            content = [TextChunk(text=query)]
+            for img_path in images[:1]:  # Use only the first image
+                content.append(ImageURLChunk(image_url=image_to_data_url(img_path)))
+
+            completion_request = ChatCompletionRequest(messages=[UserMessage(content=content)])
+
+            encoded = tokenizer.encode_chat_completion(completion_request)
+
+            images = encoded.images
+            tokens = encoded.tokens
+
+            out_tokens, _ = generate_func([tokens], model, images=[images], max_tokens=256, temperature=0.35, eos_id=tokenizer.instruct_tokenizer.tokenizer.eos_id)
+            result = tokenizer.decode(out_tokens[0])
+
+            logger.info("Response generated using Pixtral model.")
+            return result
         
         elif model_choice == "molmo":
             model, processor, device = load_model('molmo')
@@ -250,6 +254,49 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                 # Close the opened images to free up resources
                 for img in pil_images:
                     img.close()              
+        elif model_choice == 'groq-llama-vision':
+            client = load_model('groq-llama-vision')
+
+            def encode_image(image_path):
+                with open(image_path, "rb") as image_file:
+                    return base64.b64encode(image_file.read()).decode('utf-8')
+
+            content = [{"type": "text", "text": query}]
+
+            # Use only the first image
+            if images:
+                img_path = images[0]
+                full_path = os.path.join('static', img_path)
+                if os.path.exists(full_path):
+                    base64_image = encode_image(full_path)
+                    content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    })
+                else:
+                    logger.warning(f"Image file not found: {full_path}")
+
+            if len(content) == 1:  # Only text, no images
+                return "No images could be loaded for analysis."
+
+            try:
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": content
+                        }
+                    ],
+                    model="llava-v1.5-7b-4096-preview",
+                )
+                generated_text = chat_completion.choices[0].message.content
+                logger.info("Response generated using Groq Llama Vision model.")
+                return generated_text
+            except Exception as e:
+                logger.error(f"Error in Groq Llama Vision processing: {str(e)}", exc_info=True)
+                return f"An error occurred while processing the image: {str(e)}"
         else:
             logger.error(f"Invalid model choice: {model_choice}")
             return "Invalid model selected."

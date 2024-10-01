@@ -11,3 +11,5 @@ mistral_common>=1.4.1
 einops
 mistral_common[opencv]
 mistral_common
+mistral_inference
+groq

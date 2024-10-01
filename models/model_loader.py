@@ -8,6 +8,7 @@ from vllm.sampling_params import SamplingParams
 from transformers import AutoModelForCausalLM
 import google.generativeai as genai
 from vllm import LLM
+from groq import Groq
 
 from dotenv import load_dotenv
 
@@ -83,14 +84,24 @@ def load_model(model_choice):
     
     elif model_choice == "pixtral":
         device = detect_device()
-        model = LLM(model="mistralai/Pixtral-12B-2409", 
-                    tokenizer_mode="mistral",                 
-                    gpu_memory_utilization=0.8,  # Increase GPU memory utilization
-                    max_model_len=8192,  # Decrease max model length
-                    dtype="float16",  # Use half precision to save memory
-                    trust_remote_code=True)
-        sampling_params = SamplingParams(max_tokens=1024)
-        _model_cache[model_choice] = (model, sampling_params, device)
+        mistral_models_path = os.path.join(os.getcwd(), 'mistral_models', 'Pixtral')
+        
+        if not os.path.exists(mistral_models_path):
+            os.makedirs(mistral_models_path, exist_ok=True)
+            from huggingface_hub import snapshot_download
+            snapshot_download(repo_id="mistralai/Pixtral-12B-2409", 
+                              allow_patterns=["params.json", "consolidated.safetensors", "tekken.json"], 
+                              local_dir=mistral_models_path)
+
+        from mistral_inference.transformer import Transformer
+        from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+        from mistral_common.generate import generate
+
+        tokenizer = MistralTokenizer.from_file(os.path.join(mistral_models_path, "tekken.json"))
+        model = Transformer.from_folder(mistral_models_path)
+        
+        _model_cache[model_choice] = (model, tokenizer, generate, device)
+        logger.info("Pixtral model loaded and cached.")
         return _model_cache[model_choice]
     
     elif model_choice == "molmo":
@@ -108,6 +119,14 @@ def load_model(model_choice):
             device_map='auto'
         )
         _model_cache[model_choice] = (model, processor, device)
+        return _model_cache[model_choice]
+    elif model_choice == 'groq-llama-vision':
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY not found in .env file")
+        client = Groq(api_key=api_key)
+        _model_cache[model_choice] = client
+        logger.info("Groq Llama Vision model loaded and cached.")
         return _model_cache[model_choice]
     else:
         logger.error(f"Invalid model choice: {model_choice}")

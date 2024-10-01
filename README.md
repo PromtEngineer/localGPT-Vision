@@ -21,7 +21,6 @@ The project is built on top of the [Byaldi](https://github.com/AnswerDotAI/byald
 - [Project Structure](#project-structure)
 - [System Workflow](#system-workflow)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Features
 - End-to-End Vision-Based RAG: Combines visual document retrieval with language models for comprehensive answers.

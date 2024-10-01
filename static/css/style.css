@@ -1,0 +1,68 @@
+/* static/css/style.css */
+
+/* Customize chat window */
+.chat-window {
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 15px;
+}
+
+/* Customize messages */
+.message {
+    margin-bottom: 10px;
+}
+
+.user-message {
+    text-align: right;
+}
+
+.bot-message {
+    text-align: left;
+}
+
+/* Customize images */
+.img-thumbnail {
+    cursor: pointer;
+}
+
+/* Sidebar */
+.list-group-item.active {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: #fff;
+}
+
+.list-group-item a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.list-group-item a:hover {
+    text-decoration: none;
+}
+
+/* Delete Session Button */
+.delete-session-btn {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+}
+
+/* Spinner Overlay */
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1050; /* Higher than modal */
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Spinner */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}

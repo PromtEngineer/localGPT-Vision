@@ -1,0 +1,13 @@
+Flask
+byaldi
+torch
+torchvision
+google-generativeai
+openai
+docx2pdf
+qwen-vl-utils
+vllm>=0.6.1.post1
+mistral_common>=1.4.1
+einops
+mistral_common[opencv]
+mistral_common

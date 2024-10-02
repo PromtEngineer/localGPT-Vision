@@ -26,6 +26,11 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
     """
     try:
         logger.info(f"Generating response using model '{model_choice}'.")
+        
+        # Convert resized_height and resized_width to integers
+        resized_height = int(resized_height)
+        resized_width = int(resized_width)
+        
         if model_choice == 'qwen':
             from qwen_vl_utils import process_vision_info
             # Load cached model
@@ -111,6 +116,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                 content = [{"type": "text", "text": query}]
                 
                 for img_path in images:
+                    logger.info(f"Processing image: {img_path}")
                     full_path = os.path.join('static', img_path)
                     if os.path.exists(full_path):
                         base64_image = encode_image(full_path)
@@ -257,9 +263,9 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
         elif model_choice == 'groq-llama-vision':
             client = load_model('groq-llama-vision')
 
-            def encode_image(image_path):
-                with open(image_path, "rb") as image_file:
-                    return base64.b64encode(image_file.read()).decode('utf-8')
+            # def encode_image(image_path):
+            #     with open(image_path, "rb") as image_file:
+            #         return base64.b64encode(image_file.read()).decode('utf-8')
 
             content = [{"type": "text", "text": query}]
 
@@ -302,4 +308,4 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             return "Invalid model selected."
     except Exception as e:
         logger.error(f"Error generating response: {e}")
-        return "An error occurred while generating the response."
+        return f"An error occurred while generating the response: {str(e)}"

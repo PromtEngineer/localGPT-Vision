@@ -1,7 +1,8 @@
 import os
 import uuid
 import json
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+import time  # Add this import at the top of the file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from models.indexer import index_documents
 from models.retriever import retrieve_documents
 from models.responder import generate_response
@@ -86,6 +87,9 @@ def home():
 
 @app.route('/chat', methods=['GET', 'POST'])
 def chat():
+    if 'session_id' not in session:
+        session['session_id'] = str(uuid.uuid4())
+
     session_id = session['session_id']
     session_file = os.path.join(app.config['SESSION_FOLDER'], f"{session_id}.json")
 
@@ -104,74 +108,71 @@ def chat():
     if request.method == 'POST':
         if 'upload' in request.form:
             # Handle file upload and indexing
-            files = request.files.getlist('files')
+            files = request.files.getlist('file')
             session_folder = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
             os.makedirs(session_folder, exist_ok=True)
             uploaded_files = []
             for file in files:
                 if file and file.filename:
-                    filename = secure_filename(os.path.basename(file.filename))
+                    filename = secure_filename(file.filename)
                     file_path = os.path.join(session_folder, filename)
                     file.save(file_path)
                     uploaded_files.append(filename)
                     logger.info(f"File saved: {file_path}")
-            try:
-                index_name = session_id
-                index_path = os.path.join(app.config['INDEX_FOLDER'], index_name)
-                flash("Indexing documents. This may take a moment...", "info")
-                RAG = index_documents(session_folder, index_name=index_name, index_path=index_path)
-                RAG_models[session_id] = RAG
-                session['index_name'] = index_name
-                session['session_folder'] = session_folder
-                indexed_files = os.listdir(session_folder)
-                session_data = {
-                    'session_name': session_name,
-                    'chat_history': chat_history,
-                    'indexed_files': indexed_files
-                }
-                with open(session_file, 'w') as f:
-                    json.dump(session_data, f)
-                flash("Documents indexed successfully.", "success")
-                logger.info("Documents indexed successfully.")
-            except Exception as e:
-                logger.error(f"Error indexing documents: {e}")
-                flash("An error occurred while indexing documents.", "danger")
-            return redirect(url_for('chat'))
+            
+            if uploaded_files:
+                try:
+                    index_name = session_id
+                    index_path = os.path.join(app.config['INDEX_FOLDER'], index_name)
+                    RAG = index_documents(session_folder, index_name=index_name, index_path=index_path)
+                    if RAG is None:
+                        raise ValueError("Indexing failed: RAG model is None")
+                    RAG_models[session_id] = RAG
+                    session['index_name'] = index_name
+                    session['session_folder'] = session_folder
+                    indexed_files.extend(uploaded_files)
+                    session_data = {
+                        'session_name': session_name,
+                        'chat_history': chat_history,
+                        'indexed_files': indexed_files
+                    }
+                    with open(session_file, 'w') as f:
+                        json.dump(session_data, f)
+                    logger.info("Documents indexed successfully.")
+                    return jsonify({
+                        "success": True, 
+                        "message": "Files indexed successfully.",
+                        "indexed_files": indexed_files
+                    })
+                except Exception as e:
+                    logger.error(f"Error indexing documents: {str(e)}")
+                    return jsonify({"success": False, "message": f"Error indexing files: {str(e)}"})
+            else:
+                return jsonify({"success": False, "message": "No files were uploaded."})
+
         elif 'send_query' in request.form:
-            # Handle chat query
+            query = request.form['query']
+            
             try:
-                query = request.form['query']
-                if not query.strip():
-                    flash("Please enter a query.", "warning")
-                    return redirect(url_for('chat'))
-
-                flash("Generating response. Please wait...", "info")
-
                 model_choice = session.get('model', 'qwen')
-                resized_height = int(session.get('resized_height', 280))
-                resized_width = int(session.get('resized_width', 280))
-
-                RAG = RAG_models.get(session_id)
-                if not RAG:
-                    load_rag_model_for_session(session_id)
-                    RAG = RAG_models.get(session_id)
-                    if not RAG:
-                        flash("Please upload and index documents first.", "warning")
-                        return redirect(url_for('chat'))
-
-                images = retrieve_documents(RAG, query, session_id)
-                response = generate_response(
-                    images, query, session_id,
-                    resized_height=resized_height,
-                    resized_width=resized_width,
-                    model_choice=model_choice
-                )
-                chat_entry = {
-                    'user': query,
-                    'response': response,
-                    'images': images
-                }
-                chat_history.append(chat_entry)
+                resized_height = session.get('resized_height', 280)
+                resized_width = session.get('resized_width', 280)
+                
+                # Retrieve relevant documents
+                rag_model = RAG_models.get(session_id)
+                retrieved_images = retrieve_documents(rag_model, query, session_id)
+                
+                # Generate response
+                response = generate_response(retrieved_images, query, session_id, resized_height, resized_width, model_choice)
+                
+                # Update chat history
+                chat_history.append({"role": "user", "content": query})
+                chat_history.append({"role": "assistant", "content": response, "images": retrieved_images})
+                
+                # Update session name if it's the first message
+                if len(chat_history) == 2:  # First user message and AI response
+                    session_name = query[:50]  # Truncate to 50 characters
+                
                 session_data = {
                     'session_name': session_name,
                     'chat_history': chat_history,
@@ -179,48 +180,40 @@ def chat():
                 }
                 with open(session_file, 'w') as f:
                     json.dump(session_data, f)
-                logger.info("Response generated and added to chat history.")
-                flash("Response generated.", "success")
-                return redirect(url_for('chat'))
+                
+                # Render the new messages
+                new_messages_html = render_template('chat_messages.html', messages=[
+                    {"role": "user", "content": query},
+                    {"role": "assistant", "content": response, "images": retrieved_images}
+                ])
+                
+                return jsonify({
+                    "success": True,
+                    "html": new_messages_html
+                })
             except Exception as e:
-                logger.error(f"Error in chat route: {e}")
-                flash("An error occurred. Please try again.", "danger")
-                return redirect(url_for('chat'))
-        elif 'rename_session' in request.form:
-            # Handle session renaming
-            new_session_name = request.form.get('session_name', 'Untitled Session')
-            session_name = new_session_name
-            session_data = {
-                'session_name': session_name,
-                'chat_history': chat_history,
-                'indexed_files': indexed_files
-            }
-            with open(session_file, 'w') as f:
-                json.dump(session_data, f)
-            flash("Session name updated.", "success")
-            return redirect(url_for('chat'))
-        else:
-            flash("Invalid request.", "warning")
-            return redirect(url_for('chat'))
-    else:
-        session_files = os.listdir(app.config['SESSION_FOLDER'])
-        chat_sessions = []
-        for file in session_files:
-            if file.endswith('.json'):
-                s_id = file[:-5]
-                with open(os.path.join(app.config['SESSION_FOLDER'], file), 'r') as f:
-                    data = json.load(f)
-                    name = data.get('session_name', 'Untitled Session')
-                    chat_sessions.append({'id': s_id, 'name': name})
+                logger.error(f"Error generating response: {e}")
+                return jsonify({"success": False, "message": f"An error occurred while generating the response: {str(e)}"})
 
-        model_choice = session.get('model', 'qwen')
-        resized_height = session.get('resized_height', 280)
-        resized_width = session.get('resized_width', 280)
+    # For GET requests, render the chat page
+    session_files = os.listdir(app.config['SESSION_FOLDER'])
+    chat_sessions = []
+    for file in session_files:
+        if file.endswith('.json'):
+            s_id = file[:-5]
+            with open(os.path.join(app.config['SESSION_FOLDER'], file), 'r') as f:
+                data = json.load(f)
+                name = data.get('session_name', 'Untitled Session')
+                chat_sessions.append({'id': s_id, 'name': name})
 
-        return render_template('chat.html', chat_history=chat_history, chat_sessions=chat_sessions,
-                               current_session=session_id, model_choice=model_choice,
-                               resized_height=resized_height, resized_width=resized_width,
-                               session_name=session_name, indexed_files=indexed_files)
+    model_choice = session.get('model', 'qwen')
+    resized_height = session.get('resized_height', 280)
+    resized_width = session.get('resized_width', 280)
+
+    return render_template('chat.html', chat_history=chat_history, chat_sessions=chat_sessions,
+                           current_session=session_id, model_choice=model_choice,
+                           resized_height=resized_height, resized_width=resized_width,
+                           session_name=session_name, indexed_files=indexed_files)
 
 @app.route('/switch_session/<session_id>')
 def switch_session(session_id):
@@ -232,23 +225,50 @@ def switch_session(session_id):
 
 @app.route('/rename_session', methods=['POST'])
 def rename_session():
-    session_id = session['session_id']
+    session_id = request.form.get('session_id')
     new_session_name = request.form.get('new_session_name', 'Untitled Session')
     session_file = os.path.join(app.config['SESSION_FOLDER'], f"{session_id}.json")
 
     if os.path.exists(session_file):
         with open(session_file, 'r') as f:
             session_data = json.load(f)
+        
+        session_data['session_name'] = new_session_name
+
+        with open(session_file, 'w') as f:
+            json.dump(session_data, f)
+
+        return jsonify({"success": True, "message": "Session name updated."})
     else:
-        session_data = {}
+        return jsonify({"success": False, "message": "Session not found."})
 
-    session_data['session_name'] = new_session_name
-
-    with open(session_file, 'w') as f:
-        json.dump(session_data, f)
-
-    flash("Session name updated.", "success")
-    return redirect(url_for('chat'))
+@app.route('/delete_session/<session_id>', methods=['POST'])
+def delete_session(session_id):
+    try:
+        session_file = os.path.join(app.config['SESSION_FOLDER'], f"{session_id}.json")
+        if os.path.exists(session_file):
+            os.remove(session_file)
+        
+        session_folder = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
+        if os.path.exists(session_folder):
+            import shutil
+            shutil.rmtree(session_folder)
+        
+        session_images_folder = os.path.join('static', 'images', session_id)
+        if os.path.exists(session_images_folder):
+            import shutil
+            shutil.rmtree(session_images_folder)
+        
+        RAG_models.pop(session_id, None)
+        
+        if session.get('session_id') == session_id:
+            session['session_id'] = str(uuid.uuid4())
+        
+        logger.info(f"Session {session_id} deleted.")
+        return jsonify({"success": True, "message": "Session deleted successfully."})
+    except Exception as e:
+        logger.error(f"Error deleting session {session_id}: {e}")
+        return jsonify({"success": False, "message": f"An error occurred while deleting the session: {str(e)}"})
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
@@ -288,30 +308,16 @@ def new_session():
     flash("New chat session started.", "success")
     return redirect(url_for('chat'))
 
-@app.route('/delete_session/<session_id>')
-def delete_session(session_id):
-    try:
-        session_file = os.path.join(app.config['SESSION_FOLDER'], f"{session_id}.json")
-        if os.path.exists(session_file):
-            os.remove(session_file)
-        global RAG_models
-        session_folder = os.path.join(app.config['UPLOAD_FOLDER'], session_id)
-        if os.path.exists(session_folder):
-            import shutil
-            shutil.rmtree(session_folder)
-        session_images_folder = os.path.join('static', 'images', session_id)
-        if os.path.exists(session_images_folder):
-            import shutil
-            shutil.rmtree(session_images_folder)
-        RAG_models.pop(session_id, None)
-        if session.get('session_id') == session_id:
-            session['session_id'] = str(uuid.uuid4())
-        logger.info(f"Session {session_id} deleted.")
-        flash("Session deleted.", "success")
-    except Exception as e:
-        logger.error(f"Error deleting session {session_id}: {e}")
-        flash("An error occurred while deleting the session.", "danger")
-    return redirect(url_for('chat'))
+@app.route('/get_indexed_files/<session_id>')
+def get_indexed_files(session_id):
+    session_file = os.path.join(app.config['SESSION_FOLDER'], f"{session_id}.json")
+    if os.path.exists(session_file):
+        with open(session_file, 'r') as f:
+            session_data = json.load(f)
+            indexed_files = session_data.get('indexed_files', [])
+        return jsonify({"success": True, "indexed_files": indexed_files})
+    else:
+        return jsonify({"success": False, "message": "Session not found."})
 
 if __name__ == '__main__':
     app.run(port=5050, debug=True)

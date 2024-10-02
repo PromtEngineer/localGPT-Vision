@@ -4,43 +4,183 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>localGPT-Vision</title>
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalGPT Vision</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/medium-zoom@1.0.6/dist/style.min.css">
 </head>
 <body>
-    <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <a class="navbar-brand" href="/">localGPT-Vision</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" 
-            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <!-- Navigation Items -->
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="/settings">Settings</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
-    <!-- Main Container -->
     <div class="container-fluid">
-        {% block content %}{% endblock %}
-    </div>
-    <!-- Loading Spinner -->
-    <div id="loadingSpinner" class="spinner-overlay" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-            <span class="sr-only">Loading...</span>
+        <div class="row">
+            <!-- Sidebar -->
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar collapse">
+                <div class="position-sticky d-flex flex-column h-100">
+                    <div class="sidebar-header">
+                        <h3 class="text-light">LocalGPT Vision</h3>
+                    </div>
+                    
+                    <div class="sidebar-content">
+                        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                            <span>Chat Sessions</span>
+                            <a class="link-secondary" href="{{ url_for('new_session') }}" aria-label="Add a new session">
+                                <i class="fas fa-plus-circle"></i>
+                            </a>
+                        </h6>
+                        <ul class="nav flex-column mb-2 session-list">
+                            {% for session in chat_sessions %}
+                                <li class="nav-item d-flex justify-content-between align-items-center py-1 {% if session.id == current_session %}current-session{% endif %}">
+                                    <a class="nav-link {% if session.id == current_session %}active{% endif %}" href="{{ url_for('switch_session', session_id=session.id) }}">
+                                        <span class="session-name" data-session-id="{{ session.id }}">{{ session.name }}</span>
+                                    </a>
+                                    <div class="session-options">
+                                        <i class="fas fa-ellipsis-h" data-session-id="{{ session.id }}"></i>
+                                        <div class="options-popup" id="options-{{ session.id }}">
+                                            <div class="option edit-session">Edit</div>
+                                            <div class="option delete-session">Delete</div>
+                                            <div class="option show-indexed-files">Indexed Files</div>
+                                        </div>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <a href="{{ url_for('settings') }}" class="btn btn-sm btn-outline-secondary me-2">
+                            <i class="fas fa-cog"></i> Models
+                        </a>
+                        <button class="btn btn-sm btn-outline-secondary" id="toggle-sidebar">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                    </div>
+                </div>
+
+                {% block content %}{% endblock %}
+            </main>
         </div>
     </div>
-    <!-- Bootstrap JS and dependencies -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Modal for displaying indexed files -->
+    <div class="modal fade" id="indexedFilesModal" tabindex="-1" aria-labelledby="indexedFilesModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="indexedFilesModalLabel">Indexed Files</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul id="indexed-files-list" class="list-group">
+                        <!-- Indexed files will be populated here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/medium-zoom@1.0.6/dist/medium-zoom.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#toggle-sidebar').click(function() {
+                $('#sidebar').toggleClass('active');
+                $('main').toggleClass('active');
+            });
+
+            // Handle session options
+            $('.fa-ellipsis-h').click(function(e) {
+                e.stopPropagation();
+                var sessionId = $(this).data('session-id');
+                $('#options-' + sessionId).toggle();
+            });
+
+            // Close options popup when clicking outside
+            $(document).click(function() {
+                $('.options-popup').hide();
+            });
+
+            // Prevent closing when clicking inside the popup
+            $('.options-popup').click(function(e) {
+                e.stopPropagation();
+            });
+
+            // Handle showing indexed files
+            $('.show-indexed-files').click(function() {
+                var sessionId = $(this).closest('.session-options').find('.fa-ellipsis-h').data('session-id');
+                fetchIndexedFiles(sessionId);
+            });
+
+            // Handle edit session
+            $(document).on('click', '.edit-session', function() {
+                var sessionId = $(this).closest('.session-options').find('.fa-ellipsis-h').data('session-id');
+                var currentName = $('.session-name[data-session-id="' + sessionId + '"]').text();
+                $('#edit-session-id').val(sessionId);
+                $('#edit-session-name').val(currentName);
+                $('#editSessionModal').modal('show');
+            });
+
+            // Handle delete session
+            $(document).on('click', '.delete-session', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var sessionId = $(this).closest('.options-popup').attr('id').replace('options-', '');
+                
+                // Show confirmation dialog
+                if (confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
+                    $.ajax({
+                        url: '{{ url_for("delete_session", session_id="") }}' + sessionId,
+                        type: 'POST',
+                        success: function(response) {
+                            if (response.success) {
+                                // Remove the session from the list
+                                $('li:has(span[data-session-id="' + sessionId + '"])').remove();
+                                // If it was the current session, reload the page
+                                if ('{{ current_session }}' === sessionId) {
+                                    location.reload();
+                                } else {
+                                    // Close the options popup
+                                    $('#options-' + sessionId).hide();
+                                }
+                                // Show success message
+                                alert('Session deleted successfully.');
+                            } else {
+                                alert('Error deleting session: ' + response.message);
+                            }
+                        },
+                        error: function() {
+                            alert('Error deleting session. Please try again.');
+                        }
+                    });
+                }
+            });
+
+            // Function to fetch and display indexed files
+            function fetchIndexedFiles(sessionId) {
+                $.ajax({
+                    url: '{{ url_for("get_indexed_files", session_id="") }}' + sessionId,
+                    type: 'GET',
+                    success: function(response) {
+                        var filesList = $('#indexed-files-list');
+                        filesList.empty();
+                        response.indexed_files.forEach(function(file) {
+                            filesList.append('<li class="list-group-item">' + file + '</li>');
+                        });
+                        $('#indexedFilesModal').modal('show');
+                    },
+                    error: function() {
+                        alert('Error fetching indexed files. Please try again.');
+                    }
+                });
+            }
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -27,18 +27,21 @@ def index_documents(folder_path, index_name='document_index', index_path=None):
 
         # Initialize RAG model
         RAG = RAGMultiModalModel.from_pretrained("vidore/colpali")
-        logger.info("RAG model loaded.")
+        if RAG is None:
+            raise ValueError("Failed to initialize RAGMultiModalModel")
+        logger.info("RAG model initialized.")
 
         # Index the documents in the folder
         RAG.index(
             input_path=folder_path,
             index_name=index_name,
-            # index_path=index_path,
             store_collection_with_index=True,
             overwrite=True
         )
+
         logger.info(f"Indexing completed. Index saved at '{index_path}'.")
+
         return RAG
     except Exception as e:
-        logger.error(f"Error during indexing: {e}")
+        logger.error(f"Error during indexing: {str(e)}")
         raise

@@ -5,23 +5,10 @@
 {% block content %}
 <div class="container mt-4">
     <h2>Settings</h2>
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show mt-2" role="alert">
-                    {{ message }}
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
-    <form action="/settings" method="post">
-        <div class="form-group">
-            <label for="model">Select Generation Model:</label>
-            <select name="model" class="form-control" id="model">
+    <form action="{{ url_for('settings') }}" method="post" class="mt-4">
+        <div class="mb-3">
+            <label for="model" class="form-label">Select Generation Model:</label>
+            <select name="model" class="form-select" id="model">
                 <option value="qwen" {% if model_choice == 'qwen' %}selected{% endif %}>Qwen2-VL-7B-Instruct</option>
                 <option value="gemini" {% if model_choice == 'gemini' %}selected{% endif %}>Google Gemini</option>
                 <option value="gpt4" {% if model_choice == 'gpt4' %}selected{% endif %}>OpenAI GPT-4</option>
@@ -31,12 +18,12 @@
                 <option value="groq-llama-vision" {% if model_choice == 'groq-llama-vision' %}selected{% endif %}>Groq Llama Vision</option>
             </select>
         </div>
-        <div class="form-group">
-            <label for="resized_height">Image Resized Height (multiple of 28):</label>
+        <div class="mb-3">
+            <label for="resized_height" class="form-label">Image Resized Height (multiple of 28):</label>
             <input type="number" name="resized_height" class="form-control" id="resized_height" value="{{ resized_height }}" min="28" step="28">
         </div>
-        <div class="form-group">
-            <label for="resized_width">Image Resized Width (multiple of 28):</label>
+        <div class="mb-3">
+            <label for="resized_width" class="form-label">Image Resized Width (multiple of 28):</label>
             <input type="number" name="resized_width" class="form-control" id="resized_width" value="{{ resized_width }}" min="28" step="28">
         </div>
         <button type="submit" class="btn btn-primary">Save Settings</button>

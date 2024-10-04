@@ -1,7 +1,7 @@
 # localGPT-Vision
 
 
-localGPT-Vision is an end-to-end vision-based Retrieval-Augmented Generation (RAG) system. It allows users to upload and index documents (PDFs and images), ask questions about the content, and receive responses along with relevant document snippets. The retrieval is performed using the [ColPali](https://huggingface.co/blog/manu/colpali) model, and the retrieved pages are passed to a Vision Language Model (VLM) for generating responses. Currently, the code supports these VLMs: 
+localGPT-Vision is an end-to-end vision-based Retrieval-Augmented Generation (RAG) system. It allows users to upload and index documents (PDFs and images), ask questions about the content, and receive responses along with relevant document snippets. The retrieval is performed using the [Colqwen](https://huggingface.co/vidore/colqwen2-v0.1) or [ColPali](https://huggingface.co/blog/manu/colpali) models, and the retrieved pages are passed to a Vision Language Model (VLM) for generating responses. Currently, the code supports these VLMs: 
 
 - [Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct)
 - [LLAMA-3.2-11B-Vision](https://huggingface.co/meta-llama/Llama-3.2-11B-Vision)
@@ -33,8 +33,8 @@ The project is built on top of the [Byaldi](https://github.com/AnswerDotAI/byald
 ## Architecture
 localGPT-Vision is built as an end-to-end vision-based RAG system. T he architecture comprises two main components:
 
-1. Visual Document Retrieval with ColPali:
-   - [ColPali](https://huggingface.co/blog/manu/colpali) is a Vision Language Model designed for efficient document retrieval solely using the image representation of document pages.
+1. Visual Document Retrieval with Colqwen and ColPali:
+   - [Colqwen](https://huggingface.co/vidore/colqwen2-v0.1) and [ColPali](https://huggingface.co/blog/manu/colpali) are Vision Encoders designed for efficient document retrieval solely using the image representation of document pages.
    - It embeds page images directly, leveraging visual cues like layout, fonts, figures, and tables without relying on OCR or text extraction.
    - During indexing, document pages are converted into image embeddings and stored.
    - During querying, the user query is matched against these embeddings to retrieve the most relevant document pages.

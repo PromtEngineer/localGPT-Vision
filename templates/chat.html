@@ -7,7 +7,11 @@
     <div class="chat-messages" id="chat-messages">
         {% for message in chat_history %}
             <div class="message {% if message.role == 'user' %}user-message{% else %}ai-message{% endif %}">
-                {{ message.content }}
+                {% if message.role == 'user' %}
+                    {{ message.content }}
+                {% else %}
+                    {{ message.content|safe }}
+                {% endif %}
                 {% if message.images %}
                     <div class="image-container">
                         {% for image in message.images %}

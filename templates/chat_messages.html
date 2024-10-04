@@ -1,10 +1,14 @@
 {% for message in messages %}
     <div class="message {% if message.role == 'user' %}user-message{% else %}ai-message{% endif %}">
-        {{ message.content }}
+        {% if message.role == 'user' %}
+            {{ message.content }}
+        {% else %}
+            {{ message.content|safe }}
+        {% endif %}
         {% if message.images %}
             <div class="image-container">
                 {% for image in message.images %}
-                    <img src="{{ url_for('static', filename=image) }}" alt="Retrieved Image" class="retrieved-image zoomable">
+                    <img src="{{ url_for('static', filename=image) }}" alt="Retrieved Image" class="retrieved-image zoomable" onerror="this.style.display='none'; console.error('Failed to load image:', '{{ image }}');">
                 {% endfor %}
             </div>
         {% endif %}

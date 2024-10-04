@@ -31,6 +31,16 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
         resized_height = int(resized_height)
         resized_width = int(resized_width)
         
+        # Ensure images are full paths
+        full_image_paths = [os.path.join('static', img) if not img.startswith('static') else img for img in images]
+        
+        # Check if any valid images exist
+        valid_images = [img for img in full_image_paths if os.path.exists(img)]
+        
+        if not valid_images:
+            logger.warning("No valid images found for analysis.")
+            return "No images could be loaded for analysis."
+        
         if model_choice == 'qwen':
             from qwen_vl_utils import process_vision_info
             # Load cached model
@@ -40,10 +50,10 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             resized_width = (resized_width // 28) * 28
 
             image_contents = []
-            for image in images:
+            for image in valid_images:
                 image_contents.append({
                     "type": "image",
-                    "image": os.path.join('static', image),
+                    "image": image,  # Use the full path
                     "resized_height": resized_height,
                     "resized_width": resized_width
                 })
@@ -74,23 +84,20 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             return output_text[0]
         
         elif model_choice == 'gemini':
-            
             model, _ = load_model('gemini')
             
             try:
-                content = []
-                content.append(query)  # Add the text query first
+                content = [query]  # Add the text query first
                 
-                for img_path in images:
-                    full_path = os.path.join('static', img_path)
-                    if os.path.exists(full_path):
+                for img_path in valid_images:
+                    if os.path.exists(img_path):
                         try:
-                            img = Image.open(full_path)
+                            img = Image.open(img_path)
                             content.append(img)
                         except Exception as e:
-                            logger.error(f"Error opening image {full_path}: {e}")
+                            logger.error(f"Error opening image {img_path}: {e}")
                     else:
-                        logger.warning(f"Image file not found: {full_path}")
+                        logger.warning(f"Image file not found: {img_path}")
                 
                 if len(content) == 1:  # Only text, no images
                     return "No images could be loaded for analysis."
@@ -115,11 +122,10 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             try:
                 content = [{"type": "text", "text": query}]
                 
-                for img_path in images:
+                for img_path in valid_images:
                     logger.info(f"Processing image: {img_path}")
-                    full_path = os.path.join('static', img_path)
-                    if os.path.exists(full_path):
-                        base64_image = encode_image(full_path)
+                    if os.path.exists(img_path):
+                        base64_image = encode_image(img_path)
                         content.append({
                             "type": "image_url",
                             "image_url": {
@@ -127,13 +133,13 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                             }
                         })
                     else:
-                        logger.warning(f"Image file not found: {full_path}")
+                        logger.warning(f"Image file not found: {img_path}")
                 
                 if len(content) == 1:  # Only text, no images
                     return "No images could be loaded for analysis."
                 
                 response = client.chat.completions.create(
-                    model="gpt-4o",  # Make sure to use the correct model name
+                    model="gpt-4-vision-preview",
                     messages=[
                         {
                             "role": "user",
@@ -156,10 +162,12 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             model, processor, device = load_model('llama-vision')
 
             # Process images
-            image_paths = [os.path.join('static', image) for image in images]
             # For simplicity, use the first image
-            image_path = image_paths[0]
-            image = Image.open(image_path).convert('RGB')
+            image_path = valid_images[0] if valid_images else None
+            if image_path and os.path.exists(image_path):
+                image = Image.open(image_path).convert('RGB')
+            else:
+                return "No valid image found for analysis."
 
             # Prepare messages
             messages = [
@@ -180,7 +188,6 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             model, tokenizer, generate_func, device = load_model('pixtral')
 
             def image_to_data_url(image_path):
-                image_path = os.path.join('static', image_path) 
                 with open(image_path, "rb") as image_file:
                     encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
                 ext = os.path.splitext(image_path)[1][1:]  # Get the file extension
@@ -191,7 +198,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
 
             # Prepare the content with text and images
             content = [TextChunk(text=query)]
-            for img_path in images[:1]:  # Use only the first image
+            for img_path in valid_images[:1]:  # Use only the first image
                 content.append(ImageURLChunk(image_url=image_to_data_url(img_path)))
 
             completion_request = ChatCompletionRequest(messages=[UserMessage(content=content)])
@@ -211,16 +218,15 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             model, processor, device = load_model('molmo')
             model = model.half()  # Convert model to half precision
             pil_images = []
-            for img_path in images[:1]:  # Process only the first image for now
-                full_path = os.path.join('static', img_path)
-                if os.path.exists(full_path):
+            for img_path in valid_images[:1]:  # Process only the first image for now
+                if os.path.exists(img_path):
                     try:
-                        img = Image.open(full_path).convert('RGB')
+                        img = Image.open(img_path).convert('RGB')
                         pil_images.append(img)
                     except Exception as e:
-                        logger.error(f"Error opening image {full_path}: {e}")
+                        logger.error(f"Error opening image {img_path}: {e}")
                 else:
-                    logger.warning(f"Image file not found: {full_path}")
+                    logger.warning(f"Image file not found: {img_path}")
 
             if not pil_images:
                 return "No images could be loaded for analysis."
@@ -263,18 +269,13 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
         elif model_choice == 'groq-llama-vision':
             client = load_model('groq-llama-vision')
 
-            # def encode_image(image_path):
-            #     with open(image_path, "rb") as image_file:
-            #         return base64.b64encode(image_file.read()).decode('utf-8')
-
             content = [{"type": "text", "text": query}]
 
             # Use only the first image
-            if images:
-                img_path = images[0]
-                full_path = os.path.join('static', img_path)
-                if os.path.exists(full_path):
-                    base64_image = encode_image(full_path)
+            if valid_images:
+                img_path = valid_images[0]
+                if os.path.exists(img_path):
+                    base64_image = encode_image(img_path)
                     content.append({
                         "type": "image_url",
                         "image_url": {
@@ -282,7 +283,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                         }
                     })
                 else:
-                    logger.warning(f"Image file not found: {full_path}")
+                    logger.warning(f"Image file not found: {img_path}")
 
             if len(content) == 1:  # Only text, no images
                 return "No images could be loaded for analysis."

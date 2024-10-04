@@ -4,29 +4,59 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Settings</h2>
+    <h2 class="mb-4">Settings</h2>
     <form action="{{ url_for('settings') }}" method="post" class="mt-4">
-        <div class="mb-3">
-            <label for="model" class="form-label">Select Generation Model:</label>
-            <select name="model" class="form-select" id="model">
-                <option value="qwen" {% if model_choice == 'qwen' %}selected{% endif %}>Qwen2-VL-7B-Instruct</option>
-                <option value="gemini" {% if model_choice == 'gemini' %}selected{% endif %}>Google Gemini</option>
-                <option value="gpt4" {% if model_choice == 'gpt4' %}selected{% endif %}>OpenAI GPT-4</option>
-                <option value="llama-vision" {% if model_choice == 'llama-vision' %}selected{% endif %}>Llama-Vision</option>
-                <option value="pixtral" {% if model_choice == 'pixtral' %}selected{% endif %}>Pixtral</option>
-                <option value="molmo" {% if model_choice == 'molmo' %}selected{% endif %}>Molmo</option>
-                <option value="groq-llama-vision" {% if model_choice == 'groq-llama-vision' %}selected{% endif %}>Groq Llama Vision</option>
+        <h3 class="mb-3">Retrieval Model</h3>
+        <div class="mb-4">
+            <label for="indexer_model" class="form-label">Select Indexer Model:</label>
+            <select name="indexer_model" class="form-select" id="indexer_model">
+                <option value="vidore/colpali" {% if indexer_model == 'vidore/colpali' %}selected{% endif %}>vidore/colpali</option>
+                <option value="vidore/colpali-v1.2" {% if indexer_model == 'vidore/colpali-v1.2' %}selected{% endif %}>vidore/colpali-v1.2</option>
+                <option value="vidore/colqwen2-v0.1" {% if indexer_model == 'vidore/colqwen2-v0.1' %}selected{% endif %}>vidore/colqwen2-v0.1</option>
             </select>
         </div>
+
+        <h3 class="mb-3">Generation Model</h3>
+        <div class="mb-4">
+            <label for="generation_model" class="form-label">Select Generation Model:</label>
+            <select name="generation_model" class="form-select" id="generation_model">
+                <option value="qwen" {% if generation_model == 'qwen' %}selected{% endif %}>Qwen2-VL-7B-Instruct</option>
+                <option value="gemini" {% if generation_model == 'gemini' %}selected{% endif %}>Google Gemini</option>
+                <option value="gpt4" {% if generation_model == 'gpt4' %}selected{% endif %}>OpenAI GPT-4</option>
+                <option value="llama-vision" {% if generation_model == 'llama-vision' %}selected{% endif %}>Llama-Vision</option>
+                <option value="pixtral" {% if generation_model == 'pixtral' %}selected{% endif %}>Pixtral</option>
+                <option value="molmo" {% if generation_model == 'molmo' %}selected{% endif %}>Molmo</option>
+                <option value="groq-llama-vision" {% if generation_model == 'groq-llama-vision' %}selected{% endif %}>Groq Llama Vision</option>
+            </select>
+        </div>
+
+        <h3 class="mb-3">Image Settings</h3>
         <div class="mb-3">
             <label for="resized_height" class="form-label">Image Resized Height (multiple of 28):</label>
             <input type="number" name="resized_height" class="form-control" id="resized_height" value="{{ resized_height }}" min="28" step="28">
         </div>
-        <div class="mb-3">
+        <div class="mb-4">
             <label for="resized_width" class="form-label">Image Resized Width (multiple of 28):</label>
             <input type="number" name="resized_width" class="form-control" id="resized_width" value="{{ resized_width }}" min="28" step="28">
         </div>
         <button type="submit" class="btn btn-primary">Save Settings</button>
     </form>
 </div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .container {
+        max-width: 600px;
+    }
+    h2, h3, .form-label, .form-select, .form-control, .btn {
+        font-size: 1em;
+    }
+    h2 {
+        font-size: 1.5em;
+    }
+    h3 {
+        font-size: 1.2em;
+    }
+</style>
 {% endblock %}

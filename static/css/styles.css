@@ -284,3 +284,31 @@ main.active {
 .session-list .nav-item.current-session .fa-ellipsis-h {
     color: #ffffff;
 }
+
+/* Markdown styles */
+.ai-message h1, .ai-message h2, .ai-message h3, .ai-message h4, .ai-message h5, .ai-message h6 {
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+
+.ai-message p {
+    margin-bottom: 10px;
+}
+
+.ai-message ul, .ai-message ol {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.ai-message code {
+    background-color: #f0f0f0;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.ai-message pre {
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+}

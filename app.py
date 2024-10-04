@@ -3,12 +3,14 @@ import uuid
 import json
 import time  # Add this import at the top of the file
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from markupsafe import Markup
 from models.indexer import index_documents
 from models.retriever import retrieve_documents
 from models.responder import generate_response
 from werkzeug.utils import secure_filename
 from logger import get_logger
 from byaldi import RAGMultiModalModel
+import markdown
 
 # Set the TOKENIZERS_PARALLELISM environment variable to suppress warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -124,7 +126,8 @@ def chat():
                 try:
                     index_name = session_id
                     index_path = os.path.join(app.config['INDEX_FOLDER'], index_name)
-                    RAG = index_documents(session_folder, index_name=index_name, index_path=index_path)
+                    indexer_model = session.get('indexer_model', 'vidore/colpali')
+                    RAG = index_documents(session_folder, index_name=index_name, index_path=index_path, indexer_model=indexer_model)
                     if RAG is None:
                         raise ValueError("Indexing failed: RAG model is None")
                     RAG_models[session_id] = RAG
@@ -154,20 +157,33 @@ def chat():
             query = request.form['query']
             
             try:
-                model_choice = session.get('model', 'qwen')
+                generation_model = session.get('generation_model', 'qwen')
                 resized_height = session.get('resized_height', 280)
                 resized_width = session.get('resized_width', 280)
                 
                 # Retrieve relevant documents
                 rag_model = RAG_models.get(session_id)
+                if rag_model is None:
+                    logger.error(f"RAG model not found for session {session_id}")
+                    return jsonify({"success": False, "message": "RAG model not found for this session."})
+                
                 retrieved_images = retrieve_documents(rag_model, query, session_id)
+                logger.info(f"Retrieved images: {retrieved_images}")
                 
-                # Generate response
-                response = generate_response(retrieved_images, query, session_id, resized_height, resized_width, model_choice)
+                # Generate response with full image paths
+                full_image_paths = [os.path.join(app.static_folder, img) for img in retrieved_images]
+                response = generate_response(full_image_paths, query, session_id, resized_height, resized_width, generation_model)
                 
+                # Parse markdown in the response
+                parsed_response = Markup(markdown.markdown(response))
+
                 # Update chat history
                 chat_history.append({"role": "user", "content": query})
-                chat_history.append({"role": "assistant", "content": response, "images": retrieved_images})
+                chat_history.append({
+                    "role": "assistant", 
+                    "content": parsed_response, 
+                    "images": retrieved_images  # Keep relative paths for frontend
+                })
                 
                 # Update session name if it's the first message
                 if len(chat_history) == 2:  # First user message and AI response
@@ -184,7 +200,7 @@ def chat():
                 # Render the new messages
                 new_messages_html = render_template('chat_messages.html', messages=[
                     {"role": "user", "content": query},
-                    {"role": "assistant", "content": response, "images": retrieved_images}
+                    {"role": "assistant", "content": parsed_response, "images": retrieved_images}
                 ])
                 
                 return jsonify({
@@ -273,22 +289,28 @@ def delete_session(session_id):
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
     if request.method == 'POST':
-        model_choice = request.form.get('model', 'qwen')
+        indexer_model = request.form.get('indexer_model', 'vidore/colpali')
+        generation_model = request.form.get('generation_model', 'qwen')
         resized_height = request.form.get('resized_height', 280)
         resized_width = request.form.get('resized_width', 280)
-        session['model'] = model_choice
+        session['indexer_model'] = indexer_model
+        session['generation_model'] = generation_model
         session['resized_height'] = resized_height
         session['resized_width'] = resized_width
         session.modified = True
-        logger.info(f"Settings updated: model={model_choice}, resized_height={resized_height}, resized_width={resized_width}")
+        logger.info(f"Settings updated: indexer_model={indexer_model}, generation_model={generation_model}, resized_height={resized_height}, resized_width={resized_width}")
         flash("Settings updated.", "success")
         return redirect(url_for('chat'))
     else:
-        model_choice = session.get('model', 'qwen')
+        indexer_model = session.get('indexer_model', 'vidore/colpali')
+        generation_model = session.get('generation_model', 'qwen')
         resized_height = session.get('resized_height', 280)
         resized_width = session.get('resized_width', 280)
-        return render_template('settings.html', model_choice=model_choice,
-                               resized_height=resized_height, resized_width=resized_width)
+        return render_template('settings.html', 
+                               indexer_model=indexer_model,
+                               generation_model=generation_model,
+                               resized_height=resized_height, 
+                               resized_width=resized_width)
 
 @app.route('/new_session')
 def new_session():

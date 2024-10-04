@@ -13,3 +13,4 @@ mistral_common[opencv]
 mistral_common
 mistral_inference
 groq
+markdown

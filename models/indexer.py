@@ -7,7 +7,7 @@ from logger import get_logger
 
 logger = get_logger(__name__)
 
-def index_documents(folder_path, index_name='document_index', index_path=None):
+def index_documents(folder_path, index_name='document_index', index_path=None, indexer_model='vidore/colpali'):
     """
     Indexes documents in the specified folder using Byaldi.
 
@@ -15,6 +15,7 @@ def index_documents(folder_path, index_name='document_index', index_path=None):
         folder_path (str): The path to the folder containing documents to index.
         index_name (str): The name of the index to create or update.
         index_path (str): The path where the index should be saved.
+        indexer_model (str): The name of the indexer model to use.
 
     Returns:
         RAGMultiModalModel: The RAG model with the indexed documents.
@@ -26,10 +27,10 @@ def index_documents(folder_path, index_name='document_index', index_path=None):
         logger.info("Conversion of non-PDF documents to PDFs completed.")
 
         # Initialize RAG model
-        RAG = RAGMultiModalModel.from_pretrained("vidore/colpali")
+        RAG = RAGMultiModalModel.from_pretrained(indexer_model)
         if RAG is None:
-            raise ValueError("Failed to initialize RAGMultiModalModel")
-        logger.info("RAG model initialized.")
+            raise ValueError(f"Failed to initialize RAGMultiModalModel with model {indexer_model}")
+        logger.info(f"RAG model initialized with {indexer_model}.")
 
         # Index the documents in the folder
         RAG.index(

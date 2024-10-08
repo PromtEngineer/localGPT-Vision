@@ -224,4 +224,7 @@ Contributions are welcome! Please follow these steps:
 4. Push to the branch: `git push origin feature-name`.
 5. Submit a pull request.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=PromtEngineer/localGPT-Vision&type=Date)](https://star-history.com/#PromtEngineer/localGPT-Vision&Date)
 

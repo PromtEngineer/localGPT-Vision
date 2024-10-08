@@ -1,5 +1,7 @@
 # localGPT-Vision
 
+[Watch the video on YouTube](https://youtu.be/YPs4eGDpIY4)
+
 
 localGPT-Vision is an end-to-end vision-based Retrieval-Augmented Generation (RAG) system. It allows users to upload and index documents (PDFs and images), ask questions about the content, and receive responses along with relevant document snippets. The retrieval is performed using the [Colqwen](https://huggingface.co/vidore/colqwen2-v0.1) or [ColPali](https://huggingface.co/blog/manu/colpali) models, and the retrieved pages are passed to a Vision Language Model (VLM) for generating responses. Currently, the code supports these VLMs: 
 

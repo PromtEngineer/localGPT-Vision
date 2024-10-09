@@ -139,7 +139,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                     return "No images could be loaded for analysis."
                 
                 response = client.chat.completions.create(
-                    model="gpt-4-vision-preview",
+                    model="gpt-4o",
                     messages=[
                         {
                             "role": "user",

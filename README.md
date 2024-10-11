@@ -112,7 +112,7 @@ Follow these steps to set up and run the application on your local machine.
 6. Access the Application
    Open your web browser and navigate to:
    ```
-   http://localhost:5000/
+   http://localhost:5050/
    ```
 
 ## Usage

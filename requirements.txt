@@ -6,7 +6,7 @@ google-generativeai
 openai
 docx2pdf
 qwen-vl-utils
-vllm>=0.6.1.post1
+vllm>=0.6.1.post1; sys_platform != 'darwin'
 mistral_common>=1.4.1
 einops
 mistral_common[opencv]
@@ -14,3 +14,4 @@ mistral_common
 mistral_inference
 groq
 markdown
+hf_transfer

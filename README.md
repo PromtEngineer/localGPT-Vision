@@ -17,6 +17,7 @@ localGPT-Vision is an end-to-end vision-based Retrieval-Augmented Generation (RA
 - [Molmo-7B-O-0924](https://huggingface.co/allenai/Molmo-7B-O-0924)
 - [Google Gemini](https://aistudio.google.com/app/prompts/new_chat)
 - [OpenAI GPT-4o](https://platform.openai.com/docs/guides/vision)
+- [LLAMA-3.2 with Ollama](https://ollama.com/blog/llama3.2-vision)
 
 The project is built on top of the [Byaldi](https://github.com/AnswerDotAI/byaldi) library.
 

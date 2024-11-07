@@ -172,17 +172,27 @@ def chat():
                 
                 # Generate response with full image paths
                 full_image_paths = [os.path.join(app.static_folder, img) for img in retrieved_images]
-                response = generate_response(full_image_paths, query, session_id, resized_height, resized_width, generation_model)
+                response_text, used_images = generate_response(
+                    full_image_paths, 
+                    query, 
+                    session_id, 
+                    resized_height, 
+                    resized_width, 
+                    generation_model
+                )
                 
                 # Parse markdown in the response
-                parsed_response = Markup(markdown.markdown(response))
+                parsed_response = Markup(markdown.markdown(response_text))
+
+                # Get relative paths for used images
+                relative_images = [os.path.relpath(img, app.static_folder) for img in used_images]
 
                 # Update chat history
                 chat_history.append({"role": "user", "content": query})
                 chat_history.append({
                     "role": "assistant", 
                     "content": parsed_response, 
-                    "images": retrieved_images  # Keep relative paths for frontend
+                    "images": relative_images  # Use relative paths for frontend
                 })
                 
                 # Update session name if it's the first message
@@ -200,7 +210,7 @@ def chat():
                 # Render the new messages
                 new_messages_html = render_template('chat_messages.html', messages=[
                     {"role": "user", "content": query},
-                    {"role": "assistant", "content": parsed_response, "images": retrieved_images}
+                    {"role": "assistant", "content": parsed_response, "images": relative_images}
                 ])
                 
                 return jsonify({
@@ -208,8 +218,11 @@ def chat():
                     "html": new_messages_html
                 })
             except Exception as e:
-                logger.error(f"Error generating response: {e}")
-                return jsonify({"success": False, "message": f"An error occurred while generating the response: {str(e)}"})
+                logger.error(f"Error generating response: {e}", exc_info=True)
+                return jsonify({
+                    "success": False, 
+                    "message": f"An error occurred while generating the response: {str(e)}"
+                })
 
     # For GET requests, render the chat page
     session_files = os.listdir(app.config['SESSION_FOLDER'])

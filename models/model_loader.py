@@ -9,7 +9,6 @@ from transformers import AutoModelForCausalLM
 import google.generativeai as genai
 from vllm import LLM
 from groq import Groq
-
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -21,6 +20,19 @@ logger = get_logger(__name__)
 
 # Cache for loaded models
 _model_cache = {}
+
+# Models that only support single image processing
+SINGLE_IMAGE_MODELS = {
+    'ollama-llama-vision': True,
+    'groq-llama-vision': True,
+    'llama-vision': True,
+    'pixtral': True,
+    'molmo': True
+}
+
+def is_single_image_model(model_choice):
+    """Returns True if the model only supports processing a single image."""
+    return model_choice in SINGLE_IMAGE_MODELS
 
 def detect_device():
     """
@@ -57,19 +69,15 @@ def load_model(model_choice):
         return _model_cache[model_choice]
 
     elif model_choice == 'gemini':
-        # Load Gemini model
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
             raise ValueError("GOOGLE_API_KEY not found in .env file")
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash-002')  # Use the appropriate model name
+        model = genai.GenerativeModel('gemini-1.5-flash-002')
         return model, None
 
-
     elif model_choice == 'llama-vision':
-        # Load Llama-Vision model
         device = detect_device()
-        # model_id = "meta-llama/Llama-3.2-11B-Vision-Instruct"
         model_id = "alpindale/Llama-3.2-11B-Vision-Instruct"
         model = MllamaForConditionalGeneration.from_pretrained(
             model_id,
@@ -120,6 +128,7 @@ def load_model(model_choice):
         )
         _model_cache[model_choice] = (model, processor, device)
         return _model_cache[model_choice]
+
     elif model_choice == 'groq-llama-vision':
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
@@ -128,6 +137,11 @@ def load_model(model_choice):
         _model_cache[model_choice] = client
         logger.info("Groq Llama Vision model loaded and cached.")
         return _model_cache[model_choice]
+
+    elif model_choice == 'ollama-llama-vision':
+        logger.info("Ollama Llama Vision model ready to use.")
+        return None
+
     else:
         logger.error(f"Invalid model choice: {model_choice}")
         raise ValueError("Invalid model choice.")

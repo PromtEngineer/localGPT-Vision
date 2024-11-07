@@ -1,6 +1,6 @@
 # models/responder.py
 
-from models.model_loader import load_model
+from models.model_loader import load_model, is_single_image_model
 from transformers import GenerationConfig
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -11,6 +11,9 @@ import torch
 import base64
 import os
 import io
+# from langchain_core.messages import HumanMessage
+from io import BytesIO
+import ollama
 
 
 logger = get_logger(__name__)
@@ -23,6 +26,7 @@ def encode_image(image_path):
 def generate_response(images, query, session_id, resized_height=280, resized_width=280, model_choice='qwen'):
     """
     Generates a response using the selected model based on the query and images.
+    Returns: (response_text, used_images)
     """
     try:
         logger.info(f"Generating response using model '{model_choice}'.")
@@ -39,8 +43,13 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
         
         if not valid_images:
             logger.warning("No valid images found for analysis.")
-            return "No images could be loaded for analysis."
-        
+            return "No images could be loaded for analysis.", []
+
+        # If model only supports single image, use only the first image
+        if is_single_image_model(model_choice):
+            valid_images = [valid_images[0]]
+            logger.info(f"Model {model_choice} only supports single image, using first image only.")
+
         if model_choice == 'qwen':
             from qwen_vl_utils import process_vision_info
             # Load cached model
@@ -81,7 +90,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                 generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
             )
             logger.info("Response generated using Qwen model.")
-            return output_text[0]
+            return output_text[0], valid_images
         
         elif model_choice == 'gemini':
             model, _ = load_model('gemini')
@@ -100,20 +109,20 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                         logger.warning(f"Image file not found: {img_path}")
                 
                 if len(content) == 1:  # Only text, no images
-                    return "No images could be loaded for analysis."
+                    return "No images could be loaded for analysis.", []
                 
                 response = model.generate_content(content)
                 
                 if response.text:
                     generated_text = response.text
                     logger.info("Response generated using Gemini model.")
-                    return generated_text
+                    return generated_text, valid_images
                 else:
-                    return "The Gemini model did not generate any text response."
+                    return "The Gemini model did not generate any text response.", []
             
             except Exception as e:
                 logger.error(f"Error in Gemini processing: {str(e)}", exc_info=True)
-                return f"An error occurred while processing the images: {str(e)}"
+                return f"An error occurred while processing the images: {str(e)}", []
         
         elif model_choice == 'gpt4':
             api_key = os.getenv("OPENAI_API_KEY")
@@ -136,7 +145,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                         logger.warning(f"Image file not found: {img_path}")
                 
                 if len(content) == 1:  # Only text, no images
-                    return "No images could be loaded for analysis."
+                    return "No images could be loaded for analysis.", []
                 
                 response = client.chat.completions.create(
                     model="gpt-4o",
@@ -151,11 +160,11 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                 
                 generated_text = response.choices[0].message.content
                 logger.info("Response generated using GPT-4 model.")
-                return generated_text
+                return generated_text, valid_images
             
             except Exception as e:
                 logger.error(f"Error in GPT-4 processing: {str(e)}", exc_info=True)
-                return f"An error occurred while processing the images: {str(e)}"
+                return f"An error occurred while processing the images: {str(e)}", []
         
         elif model_choice == 'llama-vision':
             # Load model, processor, and device
@@ -167,7 +176,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             if image_path and os.path.exists(image_path):
                 image = Image.open(image_path).convert('RGB')
             else:
-                return "No valid image found for analysis."
+                return "No valid image found for analysis.", []
 
             # Prepare messages
             messages = [
@@ -182,7 +191,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             # Generate response
             output = model.generate(**inputs, max_new_tokens=512)
             response = processor.decode(output[0], skip_special_tokens=True)
-            return response
+            return response, valid_images
         
         elif model_choice == "pixtral":
             model, tokenizer, generate_func, device = load_model('pixtral')
@@ -212,7 +221,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
             result = tokenizer.decode(out_tokens[0])
 
             logger.info("Response generated using Pixtral model.")
-            return result
+            return result, valid_images
         
         elif model_choice == "molmo":
             model, processor, device = load_model('molmo')
@@ -229,7 +238,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                     logger.warning(f"Image file not found: {img_path}")
 
             if not pil_images:
-                return "No images could be loaded for analysis."
+                return "No images could be loaded for analysis.", []
 
             try:
                 # Process the images and text
@@ -257,11 +266,11 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                 generated_tokens = output[0, inputs['input_ids'].size(1):]
                 generated_text = processor.tokenizer.decode(generated_tokens, skip_special_tokens=True)
 
-                return generated_text
+                return generated_text, valid_images
 
             except Exception as e:
                 logger.error(f"Error in Molmo processing: {str(e)}", exc_info=True)
-                return f"An error occurred while processing the images: {str(e)}"
+                return f"An error occurred while processing the images: {str(e)}", []
             finally:
                 # Close the opened images to free up resources
                 for img in pil_images:
@@ -286,7 +295,7 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                     logger.warning(f"Image file not found: {img_path}")
 
             if len(content) == 1:  # Only text, no images
-                return "No images could be loaded for analysis."
+                return "No images could be loaded for analysis.", []
 
             try:
                 chat_completion = client.chat.completions.create(
@@ -300,13 +309,32 @@ def generate_response(images, query, session_id, resized_height=280, resized_wid
                 )
                 generated_text = chat_completion.choices[0].message.content
                 logger.info("Response generated using Groq Llama Vision model.")
-                return generated_text
+                return generated_text, valid_images
             except Exception as e:
                 logger.error(f"Error in Groq Llama Vision processing: {str(e)}", exc_info=True)
-                return f"An error occurred while processing the image: {str(e)}"
+                return f"An error occurred while processing the image: {str(e)}", []
+        elif model_choice == 'ollama-llama-vision':
+            try:
+                message = {
+                    'role': 'user',
+                    'content': query,
+                    'images': [valid_images[0]]
+                }
+                
+                response = ollama.chat(
+                    model='llama3.2-vision',
+                    messages=[message]
+                )
+                
+                logger.info("Response generated using Ollama Llama Vision model.")
+                return response['message']['content'], valid_images
+                
+            except Exception as e:
+                logger.error(f"Error in Ollama Llama Vision processing: {str(e)}", exc_info=True)
+                return f"An error occurred while processing the image: {str(e)}", []
         else:
             logger.error(f"Invalid model choice: {model_choice}")
-            return "Invalid model selected."
+            return "Invalid model selected.", []
     except Exception as e:
         logger.error(f"Error generating response: {e}")
-        return f"An error occurred while generating the response: {str(e)}"
+        return f"An error occurred while generating the response: {str(e)}", []

@@ -1,5 +1,8 @@
 Flask
 byaldi
+cmake
+pkgconfig
+python-poppler
 torch
 torchvision
 google-generativeai

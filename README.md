@@ -115,6 +115,54 @@ Follow these steps to set up and run the application on your local machine.
    ```
    http://localhost:5050/
    ```
+## Debugging
+
+To assist with debugging localGPT-Vision, certain additional dependencies need to be installed on your system. Follow the instructions below to set up your environment for debugging purposes.
+
+### Required Packages
+
+Install the necessary packages using the following commands:
+
+#### On Ubuntu/Debian-based Systems
+
+1. **Update Package Lists**
+
+   ```bash
+   sudo apt update
+   ```
+
+2. **Install Poppler Libraries and Utilities**
+
+   These libraries are essential for handling PDF files.
+
+   ```bash
+   sudo apt install libpoppler-cpp-dev poppler-utils
+   ```
+
+3. **Verify Installation of `pdftoppm`**
+
+   Check the version to ensure it's installed correctly:
+
+   ```bash
+   pdftoppm -v
+   ```
+
+4. **Install Additional Dependencies**
+
+   These packages are required for building and managing libraries.
+
+   ```bash
+   sudo apt install cmake pkgconfig python3-poppler-qt5
+   ```
+
+   ### Note
+
+   Ensure that you have appropriate permissions to run `sudo` commands on your machine. This setup is specifically tailored for Ubuntu/Debian-based systems, and steps might vary slightly if using a different Linux distribution or macOS.
+
+   ---
+
+   Feel free to modify this section as needed based on any additional requirements or specific instructions pertinent to other operating systems.
+
 
 ## Usage
 ### Upload and Index Documents

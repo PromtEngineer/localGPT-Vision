@@ -17,7 +17,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # Initialize the Flask application
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Replace with a secure secret key
+app.secret_key = os.getenv('APP_SECRET_KEY', 'localgpt')  # Replace with a secure secret key
 
 logger = get_logger(__name__)
 

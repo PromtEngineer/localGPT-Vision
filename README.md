@@ -93,9 +93,10 @@ Follow these steps to set up and run the application on your local machine.
    Set your API keys for Google Gemini and OpenAI GPT-4:
 
    ```bash
-   export GENAI_API_KEY='your_genai_api_key'
-   export OPENAI_API_KEY='your_openai_api_key'
-   export GROQ_API_KEY='your_groq_api_key'
+    export APP_SECRET_KEY='your_app_secret_key'
+    export OPENAI_API_KEY='your_openai_api_key'
+    export GROQ_API_KEY='your_groq_api_key'
+    export GOOGLE_API_KEY='your_google_api_key'
    ```
 
    On Windows Command Prompt:
